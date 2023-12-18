@@ -1,0 +1,4 @@
+kornia
+scipy
+tqdm
+wandb
