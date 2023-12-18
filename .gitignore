@@ -1,0 +1,6 @@
+.idea
+wandb
+logged_files
+buffers
+__pycache__
+data
