@@ -55,7 +55,7 @@ parser.add_argument('--override_interval_names', type=str, default=None)
 parser.add_argument('--override_load_path', type=str, default=None)
 parser.add_argument('--buffer_path', type=str, default='buffers')
 parser.add_argument('--save_model', action='store_true')
-parser.add_argument('--save_model_prefix', type=str)
+parser.add_argument('--save_model_prefix', type=str, default='')
 
 
 args = parser.parse_args()
@@ -93,12 +93,13 @@ model_eval_pool = get_eval_pool(args.eval_mode, args.model, args.model)
 
 # initialize the evaluation models
 net_eval_pool = {}
-expert_dir = args.buffer_path
+expert_dir = os.path.join(args.buffer_path, args.dataset)
 if args.dataset == "ImageNet":
     expert_dir = os.path.join(expert_dir, args.subset, str(args.res))
 if args.dataset in ["CIFAR10", "CIFAR100"] and not args.zca:
     expert_dir += "_NO_ZCA"
 expert_dir = os.path.join(expert_dir, args.model)
+print("Try to load from {}".format(expert_dir))
 expert_files = []
 n = 0
 while os.path.exists(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n))):
@@ -169,47 +170,41 @@ for model_eval in model_eval_pool:
     if args.override_load_path is not None:
         experiment_name = args.override_load_path
     max_start_epoch = args.max_start_epoch * it
-    interval_name = f'interval{it}_epoch{args.max_start_epoch * (it - 1) + 1}-{max_start_epoch}'
-    syn_lr = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'syn_lr_best.pt'))
-    print(syn_lr)
-    init_state = None
-    for it in range(1, 2):
-        # load the synthetic data
-        experiment_name = f'{args.dataset}_{args.model}_{args.eval_mode}_ipc{args.ipc}_max{args.max_start_epoch}_syn{args.syn_steps}_real{args.expert_epochs}_img{args.lr_img}_{args.lr_lr}_{args.lr_teacher}'
-        if args.zca:
-            experiment_name += '_zca'
-        if args.override_load_path is not None:
-            experiment_name = args.override_load_path
-        max_start_epoch = args.max_start_epoch * it
-        interval_name = f'interval{it}_epoch{args.max_start_epoch * (it - 1) + 1}-{max_start_epoch}'
-        if args.override_interval_names is not None:
-            interval_name = args.override_interval_names.split(".")[it - 1]
-        print(f"Load from {os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'images_best.pt')}")
-        image_syn = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'images_best.pt'))
-        label_syn = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'labels_best.pt'))
-        # syn_lr = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'syn_lr_best.pt'))
-        syn_lr = torch.tensor(0.01)
 
+    for it_eval in range(num_eval):
         accs_test = []
         accs_train = []
-        for it_eval in range(num_eval):
+        init_state = None
+        for it in range(1, args.num_intervals + 1):
+            # load the synthetic data
+            experiment_name = f'{args.dataset}_{args.model}_{args.eval_mode}_ipc{args.ipc}_max{args.max_start_epoch}_syn{args.syn_steps}_real{args.expert_epochs}_img{args.lr_img}_{args.lr_lr}_{args.lr_teacher}'
+            if args.zca:
+                experiment_name += '_zca'
+            if args.override_load_path is not None:
+                experiment_name = args.override_load_path
+            max_start_epoch = args.max_start_epoch * it
+            interval_name = f'interval{it}_epoch{args.max_start_epoch * (it - 1) + 1}-{max_start_epoch}'
+            if args.override_interval_names is not None:
+                interval_name = args.override_interval_names.split(".")[it - 1]
+            print(f"Load from {os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'images_best.pt')}")
+            image_syn = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'images_best.pt'))
+            label_syn = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'labels_best.pt'))
+            syn_lr = torch.load(os.path.join(args.save_path, args.dataset, experiment_name, interval_name, 'syn_lr_best.pt'))
+            # syn_lr = torch.tensor(0.01)
             net_eval = net_eval_pool[model_eval][it_eval]
-
             eval_labs = label_syn
             with torch.no_grad():
                 image_save = image_syn
             image_syn_eval, label_syn_eval = copy.deepcopy(image_save.detach()), copy.deepcopy(eval_labs.detach()) # avoid any unaware modification
             args.lr_net = syn_lr.item()
             
-            # args.lr_net = syn_lrs[it - 1]
-            
             net_eval, acc_train, acc_test, optimizer = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args, texture=args.texture,
             save_model=args.save_model, save_model_prefix=args.save_model_prefix + f"_{it}", stage=it, warmup=0,
             return_optimizer=True, init_state=init_state)
             init_state = optimizer.state
             net_eval_pool[model_eval][it_eval] = net_eval
-            accs_test.append(acc_test)
-            accs_train.append(acc_train)
+        accs_test.append(acc_test)
+        accs_train.append(acc_train)
         accs_test = np.array(accs_test)
         accs_train = np.array(accs_train)
         acc_test_mean = np.mean(accs_test)
@@ -217,7 +212,6 @@ for model_eval in model_eval_pool:
         if acc_test_mean > best_acc[model_eval]:
             best_acc[model_eval] = acc_test_mean
             best_std[model_eval] = acc_test_std
-            save_this_it = True
         print('Evaluate %d random %s, mean = %.4f std = %.4f\n-------------------------'%(len(accs_test), model_eval, acc_test_mean, acc_test_std))
         wandb.log({'Accuracy/{}'.format(model_eval): acc_test_mean}, step=it)
         wandb.log({'Max_Accuracy/{}'.format(model_eval): best_acc[model_eval]}, step=it)
