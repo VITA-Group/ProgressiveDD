@@ -378,7 +378,6 @@ def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, 
     lr_schedule = [Epoch//2+1]
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005)
     state_dict = optimizer.state_dict()
-    print(optimizer.state)
     if init_state is not None:
         optimizer.state = init_state
     criterion = nn.CrossEntropyLoss().to(args.device)
@@ -389,9 +388,7 @@ def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, 
     start = time.time()
     acc_train_list = []
     loss_train_list = []
-    # with torch.no_grad():
-    #     loss_test, acc_test = epoch('test', testloader, net, optimizer, criterion, args, aug=False)
-    # print(acc_test)
+
     for ep in tqdm.tqdm(range(Epoch+1)):
         loss_train, acc_train = epoch('train', trainloader, net, optimizer, criterion, args, aug=True, texture=texture)
         if ep <= warmup and warmup > 0:
@@ -405,8 +402,6 @@ def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, 
             torch.save(net.state_dict(), f'{save_model_prefix}_{ep}.pth.tar')
         if ep in lr_schedule:
             lr *= 0.1
-            # optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005)
-
             for p in optimizer.param_groups:
                 p['lr'] = lr
 

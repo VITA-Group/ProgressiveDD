@@ -1,0 +1,3 @@
+CUDA_VISIBLE_DEVICES=0 nohup python distill_increase.py --dataset=CIFAR100 --model=ConvNet --ipc=2 --syn_steps=20 --expert_epochs=3 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --root_log_dir logged_files &
+
+CUDA_VISIBLE_DEVICES=0 nohup python distill_increase.py --dataset=CIFAR100 --model=ConvNet --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --root_log_dir logged_files --batch_syn 512 > &
