@@ -8,7 +8,6 @@ import torch
 # adapted from
 # https://github.com/VICO-UoE/DatasetCondensation
 
-''' MLP '''
 class MLP(nn.Module):
     def __init__(self, channel, num_classes):
         super(MLP, self).__init__()
@@ -24,8 +23,6 @@ class MLP(nn.Module):
         return out
 
 
-
-''' ConvNet '''
 class ConvNet(nn.Module):
     def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32)):
         super(ConvNet, self).__init__()

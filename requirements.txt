@@ -1,5 +1,3 @@
-pytorch
-torchvision
 kornia
 scipy
 tqdm

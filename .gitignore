@@ -1,6 +1,3 @@
-.idea
-wandb
-logged_files
-buffers
+results
+pretrained
 __pycache__
-data

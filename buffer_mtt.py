@@ -3,8 +3,7 @@ import argparse
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from utils import get_dataset, get_network, get_daparam,\
-    TensorDataset, epoch, ParamDiffAug
+from utils import get_dataset, get_network, get_daparam, TensorDataset, epoch, ParamDiffAug
 import copy
 
 import torch.nn.utils.prune as prune
@@ -31,7 +30,7 @@ def main(args):
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     args.dsa_param = ParamDiffAug()
 
-    channel, im_size, num_classes, class_names, mean, std, dst_train, dst_test, testloader, loader_train_dict, class_map, class_map_inv = get_dataset(args.dataset, args.data_path, args.batch_real, args.subset, args=args)
+    channel, im_size, num_classes, _, _, _, dst_train, _, testloader, _, class_map, _ = get_dataset(args.dataset, args.data_path, args.batch_real, args.subset, args=args)
 
     # print('\n================== Exp %d ==================\n '%exp)
     print('Hyper-parameters: \n', args.__dict__)
@@ -48,7 +47,6 @@ def main(args):
         os.makedirs(save_dir)
 
 
-    ''' organize the real dataset '''
     images_all = []
     labels_all = []
     indices_class = [[] for c in range(num_classes)]
@@ -64,17 +62,21 @@ def main(args):
     labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
 
     for c in range(num_classes):
-        print('class c = %d: %d real images'%(c, len(indices_class[c])))
+        print(f'class c = {c}: {len(indices_class[c])} real images')
 
     for ch in range(channel):
-        print('real images channel %d, mean = %.4f, std = %.4f'%(ch, torch.mean(images_all[:, ch]), torch.std(images_all[:, ch])))
+        print(f'real images channel {ch}, mean = {torch.mean(images_all[:, ch])}, std = {torch.std(images_all[:, ch])})')
 
     criterion = nn.CrossEntropyLoss().to(args.device)
 
     trajectories = []
 
-    dst_train = TensorDataset(copy.deepcopy(images_all.detach()), copy.deepcopy(labels_all.detach()))
-    trainloader = torch.utils.data.DataLoader(dst_train, batch_size=args.batch_train, shuffle=True, num_workers=0)
+    dst_train = TensorDataset(copy.deepcopy(images_all.detach()),
+                              copy.deepcopy(labels_all.detach()))
+    trainloader = torch.utils.data.DataLoader(dst_train,
+                                              batch_size=args.batch_train,
+                                              shuffle=True,
+                                              num_workers=0)
 
     ''' set augmentation for whole-dataset training '''
     args.dc_aug_param = get_daparam(args.dataset, args.model, args.model, None)
@@ -83,8 +85,10 @@ def main(args):
 
     for it in range(0, args.num_experts):
 
-        ''' Train synthetic data '''
-        teacher_net = get_network(args.model, channel, num_classes, im_size).to(args.device) # get a random model
+        teacher_net = get_network(args.model,
+                                  channel,
+                                  num_classes,
+                                  im_size).to(args.device) # get a random model
         teacher_net.train()
         if args.use_random_pruning:
             for m in teacher_net.modules():
@@ -102,27 +106,37 @@ def main(args):
 
         for e in range(args.train_epochs):
 
-            train_loss, train_acc = epoch("train", dataloader=trainloader, net=teacher_net, optimizer=teacher_optim,
-                                        criterion=criterion, args=args, aug=True)
+            train_loss, train_acc = epoch("train",
+                                          dataloader=trainloader,
+                                          net=teacher_net,
+                                          optimizer=teacher_optim,
+                                          criterion=criterion,
+                                          args=args,
+                                          aug=True)
 
-            test_loss, test_acc = epoch("test", dataloader=testloader, net=teacher_net, optimizer=None,
-                                        criterion=criterion, args=args, aug=False)
+            test_loss, test_acc = epoch("test",
+                                        dataloader=testloader,
+                                        net=teacher_net,
+                                        optimizer=None,
+                                        criterion=criterion,
+                                        args=args,
+                                        aug=False)
 
-            print("Itr: {}\tEpoch: {}\tTrain Acc: {}\tTest Acc: {}".format(it, e, train_acc, test_acc))
+            print(f"Itr: {it}\tEpoch: {e}\tTrain Acc: {train_acc}\tTest Acc: {test_acc}")
             timestamps.append(get_params_with_prune(teacher_net))
-            
+
             if e in lr_schedule and args.decay:
                 lr *= 0.1
-                teacher_optim = torch.optim.SGD(teacher_net.parameters(), lr=lr, momentum=args.mom, weight_decay=args.l2)
+                teacher_optim = torch.optim.SGD(
+                    teacher_net.parameters(), lr=lr, momentum=args.mom, weight_decay=args.l2)
                 teacher_optim.zero_grad()
 
         trajectories.append(timestamps)
         if len(trajectories) == args.save_interval:
             n = 0
-            while os.path.exists(os.path.join(save_dir, "replay_buffer_{}.pt".format(n))):
+            while os.path.exists(os.path.join(save_dir, f"replay_buffer_{n}.pt")):
                 n += 1
-            print("Saving {}".format(os.path.join(save_dir, "replay_buffer_{}.pt".format(n))))
-            torch.save(trajectories, os.path.join(save_dir, "replay_buffer_{}.pt".format(n)))
+            torch.save(trajectories, os.path.join(save_dir, f"replay_buffer_{n}.pt"))
             trajectories = []
 
 
