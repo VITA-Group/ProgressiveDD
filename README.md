@@ -58,13 +58,13 @@ CUDA_VISIBLE_DEVICES=0 python distill_mtt.py --dataset=CIFAR100 --model=ConvNet 
 For evaluation, please run:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=2 --syn_steps=50 --expert_epochs=2 --max_start_epoch=5 --zca --lr_img=1000 --lr_lr=1e-07 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR10_ConvNet_S_ipc2_max5_syn50_real2_img1000.0_1e-07_0.01_increase_zca --save_path logged_files --epoch_eval_train 500 --save_model_prefix temp
+CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=2 --syn_steps=50 --expert_epochs=2 --max_start_epoch=5 --zca --lr_img=1000 --lr_lr=1e-07 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR10_ConvNet_S_ipc2_max5_syn50_real2_img1000.0_1e-07_0.01_increase_zca --save_path logged_files --epoch_eval_train 500
 
-CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=15 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR10_ConvNet_S_ipc10_max15_syn30_real2_img1000.0_1e-05_0.01_increase_zca --save_path logged_files --epoch_eval_train 500 --save_model_prefix temp
+CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=15 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR10_ConvNet_S_ipc10_max15_syn30_real2_img1000.0_1e-05_0.01_increase_zca --save_path logged_files --epoch_eval_train 500
 
-CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR100 --model=ConvNet --ipc=2 --syn_steps=20 --expert_epochs=3 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR100_ConvNet_S_ipc2_max20_syn20_real3_img1000.0_1e-05_0.01_increase_zca --save_path logged_files --epoch_eval_train 500 --save_model_prefix temp
+CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR100 --model=ConvNet --ipc=2 --syn_steps=20 --expert_epochs=3 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR100_ConvNet_S_ipc2_max20_syn20_real3_img1000.0_1e-05_0.01_increase_zca --save_path logged_files --epoch_eval_train 500
 
-CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR100 --model=ConvNet --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR100_ConvNet_S_ipc10_max20_syn20_real2_img1000.0_1e-05_0.01_increase_zca --save_path logged_files --epoch_eval_train 500 --save_model_prefix temp
+CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR100 --model=ConvNet --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --num_experts 5 --override_load_path CIFAR100_ConvNet_S_ipc10_max20_syn20_real2_img1000.0_1e-05_0.01_increase_zca --save_path logged_files --epoch_eval_train 500
 ```
 
 #### Tiny-Imagenet
@@ -83,17 +83,26 @@ To distill images from CIFAR-10, please run
 
 ```bash
 # IPC=10 (P=5)
-CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar10 -f 2 --ipc 2 --data_dir data --tag iterative_increase_faster --start-interval 0 --niter 2000 
+CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar10 -f 2 --ipc 2 --data_dir data --tag progressive --start-interval 0 --niter 2000 
 
 # IPC=50 (P=5)
-CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar10 -f 2 --ipc 10 --data_dir data --tag iterative_increase_faster --start-interval 0 --niter 2000 
+CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar10 -f 2 --ipc 10 --data_dir data --tag progressive --start-interval 0 --niter 2000 
 ```
 
 Similarly for CIFAR-100, please run
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar10 -f 2 --ipc 2 --data_dir data --tag iterative_increase_faster --start-interval 0 --niter 1000 
+CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar100 -f 2 --ipc 2 --data_dir data --tag progressive --start-interval 0 --niter 2000 
 
-CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar10 -f 2 --ipc 10 --data_dir data --tag iterative_increase_faster --start-interval 0 --niter 1000 
+CUDA_VISIBLE_DEVICES=0 python -u distill_idc.py --reproduce  -d cifar100 -f 2 --ipc 10 --data_dir data --tag progressive --start-interval 0 --niter 1000 
 ```
 
+## Todos
+
+
+## Acknowledgement
+
+Our code is built based on the following repositories:
+
+- [MTT](https://github.com/GeorgeCazenavette/mtt-distillation)
+- [IDC](https://github.com/snu-mllab/Efficient-Dataset-Condensation)
