@@ -6,6 +6,8 @@ This is the official repository for the paper [Data Distillation Can Be Like Vod
 
 Dataset distillation aims to reduce the time and memory requirement of training deep networks on large datasets by synthesizing a small number of synthetic images that can provide a similar generalization performance to that of the full data. Despite the recent efforts, existing dataset distillation methods suffer from a significant performance gap compared to training on the original data. In this work, we argue that distilling the entire data into one synthetic subset cannot achieve a superior generalization performance. This is because the training dynamics of deep networks drastically change during the training. Hence, multiple synthetic subsets are required to capture the training dynamics at different phases of training. To improve the distillation performance, we propose progressive dataset distillation (PDD), which synthesizes multiple small sets of synthetic images conditioned on the previous ones and trains the model on the union of the subsets generated so far. Our extensive experiments show that PDD can effectively improve the performance of existing dataset distillation methods by up to 4.3%. In addition, our method for the first time enable generating considerably larger synthetic datasets.
 
+![Framework](Figs/conditioning_diagram_stages.png)
+
 ## Installation
 
 This code is tested with Python 3.9.7, PyTorch 1.11 and CUDA 11.3. The commands to install the packages is
