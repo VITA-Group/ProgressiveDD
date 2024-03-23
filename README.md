@@ -71,7 +71,26 @@ CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=CIFAR100 --model=ConvNet
 
 #### Tiny-Imagenet
 
-Coming soon.
+First, please prepare the Tiny ImageNet dataset under the `data` folder. The next step is to generate the buffers:
+
+```bash
+python buffer.py --dataset Tiny --model=ConvNetD4 --train_epochs 24  --data_path data/tiny-imagenet-200
+```
+
+For distillation, please run
+
+```bash
+python distill_increase.py --dataset=Tiny --model=ConvNetD4 --ipc=2 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --lr_img=10000 --lr_lr=1e-04 --lr_teacher=0.01 --num_intervals 5 --data_path data/tiny-imagenet-200 --batch_syn 64 # ipc10
+python distill_increase.py --dataset=Tiny --model=ConvNetD4 --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --lr_img=10000 --lr_lr=1e-04 --lr_teacher=0.01 --num_intervals 5 --data_path data/tiny-imagenet-200 --batch_syn 64 # ipc50
+```
+
+For evaluation, please run
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=Tiny --model=ConvNetD4 --ipc=2 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --lr_img=10000 --lr_lr=1e-04 --lr_teacher=0.01 --num_intervals 5 --data_path data/tiny-imagenet-200 --num_intervals 5 --override_load_path Tiny_ConvNetD4_S_ipc2_max20_syn20_real2_img10000.0_0.0001_0.01_increase  --epoch_eval_train 500 --save_path logged_files
+
+CUDA_VISIBLE_DEVICES=0 python evaluate_mtt.py --dataset=Tiny --model=ConvNetD4 --ipc=10 --syn_steps=20 --expert_epochs=2 --max_start_epoch=20 --lr_img=10000 --lr_lr=1e-04 --lr_teacher=0.01 --num_intervals 5 --data_path data/tiny-imagenet-200 --num_intervals 5 --override_load_path Tiny_ConvNetD4_S_ipc10_max20_syn20_real2_img10000.0_0.0001_0.01_increase  --epoch_eval_train 500 --save_path logged_files
+```
 
 ### Experiments with IDC
 
