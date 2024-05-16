@@ -41,10 +41,10 @@ Subsequently, please run the following commands for CIFAR-10:
 
 ```bash
 # IPC=10 (P=5)
-CUDA_VISIBLE_DEVICES=0 python distill_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=10 --syn_steps=30 --expert_epochs=2 --max_start_epoch=15 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --root_log_dir logged_files
+CUDA_VISIBLE_DEVICES=0 python distill_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=2 --syn_steps=50 --expert_epochs=2 --max_start_epoch=5 --zca --lr_img=1000 --lr_lr=1e-07 --lr_teacher=0.01 --num_intervals 5 --root_log_dir logged_files 
 
 # IPC=50 (P=5)
-CUDA_VISIBLE_DEVICES=0 python distill_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=2 --syn_steps=50 --expert_epochs=2 --max_start_epoch=5 --zca --lr_img=1000 --lr_lr=1e-07 --lr_teacher=0.01 --num_intervals 5 --root_log_dir logged_files 
+CUDA_VISIBLE_DEVICES=0 python distill_mtt.py --dataset=CIFAR10 --model=ConvNet --ipc=10 --syn_steps=30 --expert_epochs=2 --max_start_epoch=15 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --num_intervals 5 --root_log_dir logged_files
 ```
 
 Similarly, the commands for CIFAR-100 are presented below:
