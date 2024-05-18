@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import wandb
 from utils import epoch, evaluate_synset, get_dataset, get_eval_pool, get_network, ParamDiffAug
-import torch.nn.utils.prune as prune
+
 parser = argparse.ArgumentParser(description='Parameter Processing')
 parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
 parser.add_argument('--subset', type=str, default='imagenette', help='ImageNet subset. This only does anything when --dataset=ImageNet')
@@ -40,9 +40,6 @@ parser.add_argument('--max_start_epoch', type=int, default=25, help='max epoch w
 
 parser.add_argument('--zca', action='store_true', help="do ZCA whitening")
 parser.add_argument('--texture', action='store_true', help="will distill textures instead")
-parser.add_argument('--prune', action='store_true')
-parser.add_argument('--sparse_to_dense', action='store_true')
-
 # evaluation parameters
 parser.add_argument('--num_intervals', type=int, default=2, help='how many intervals to evaluate')
 
@@ -127,23 +124,15 @@ for model_eval in model_eval_pool:
 
     for it_eval in range(num_eval):
         net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
-        if args.sparse_to_dense or args.prune:
-            buffer_ = [buffer[it_eval][0][idx] for idx in index]
-        else:
-            try:
-                buffer_ = buffer[0][0]
-            except:
-                pass
+      
+        try:
+            buffer_ = buffer[0][0]
+        except:
+            pass
         if len(buffer) > 0:
             for b, p in zip(buffer_, net_eval.state_dict().items()):
                 # load the same weights
                 p[1].copy_(b.data)
-        if args.prune:
-            state_dict = net_eval.state_dict()
-            for name, m in net_eval.named_modules():
-                if isinstance(m, nn.Conv2d):
-                    prune.custom_from_mask(m, 'weight', state_dict[name + ".weight"].abs() > 1e-9)
-                    print(torch.mean((state_dict[name + ".weight"].abs() < 1e-9).float()))
         net_eval_pool[model_eval].append(net_eval)
 
 best_acc = {m: 0 for m in model_eval_pool}
