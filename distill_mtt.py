@@ -64,18 +64,6 @@ def main(args, images_best, labels_best):
             experiment_name += '_zca'
         if len(args.tag) > 0:
             experiment_name += f'_{args.tag}'
-        if args.filter_correct_samples:
-            experiment_name += '_filter_correct_samples'
-        elif args.filter_correct_samples_both:
-            experiment_name += '_filter_correct_samples_both'
-        if args.filter_easy_to_hard:
-            experiment_name += f'_filter_easy_to_hard_{args.difficulty_interval}'
-        if args.finetune:
-            experiment_name += '_finetune'
-        # if args.decreasing_ipc:
-        #     experiment_name += '_decreasing_ipc'
-        if args.merge_interval:
-            experiment_name += '_merge_interval'
     else:
         # use everything before the last slash of args.save_dir
         if args.override_experiment_path is None:
@@ -83,20 +71,10 @@ def main(args, images_best, labels_best):
         else:
             experiment_name = args.override_experiment_path
     
-    if args.merge_interval: 
-        if args.interval >= args.start_merge_interval:
-            max_start_epoch = args.max_start_epoch * 2
-            start_epoch_ = (args.start_merge_interval - 1) * args.max_start_epoch + 1 + (args.interval - args.start_merge_interval) * max_start_epoch
-            end_epoch_ = (args.start_merge_interval - 1) * args.max_start_epoch + (args.interval - args.start_merge_interval + 1) * max_start_epoch
-            # args.freq = 2
-        else:
-            max_start_epoch = args.max_start_epoch
-            start_epoch_ = (args.interval - 1) * args.max_start_epoch + 1
-            end_epoch_ = args.interval * args.max_start_epoch
-    else:
-        max_start_epoch = args.max_start_epoch
-        start_epoch_ = (args.interval - 1) * args.max_start_epoch + 1
-        end_epoch_ = args.interval * args.max_start_epoch
+
+    max_start_epoch = args.max_start_epoch
+    start_epoch_ = (args.interval - 1) * args.max_start_epoch + 1
+    end_epoch_ = args.interval * args.max_start_epoch
 
     if args.num_intervals > 1:
         experiment_name += f'/interval{args.interval}_epoch{start_epoch_}-{end_epoch_}'
@@ -161,30 +139,6 @@ def main(args, images_best, labels_best):
     images_all = torch.cat(images_all, dim=0).to("cpu")
     labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
 
-    if args.decreasing_ipc:
-        args.ipc = [50, 10, 10, 10][args.interval - 1]
-    
-    if args.filter_easy_to_hard:
-        images = []
-        labels = []
-        import pickle
-        forgettings = pickle.load(open(f"{args.dataset.lower()}_sorted_convnet.pkl", "rb"))
-        indices = forgettings['indices']    
-        forgetting = forgettings['forgetting counts']    
-        sorted_forgetting = forgetting[indices]
-        lower = (args.interval - 1) * args.difficulty_interval
-        upper = (args.interval) * args.difficulty_interval if args.interval != args.num_intervals else 201
-        for idx, (data, label) in enumerate(dst_train):
-
-            if (sorted_forgetting[idx] >= lower) and (sorted_forgetting[idx] < upper):
-                images.append(data)
-                labels.append(label)
-        images_all = torch.stack(images)
-        labels_all = torch.from_numpy(np.array(labels, dtype=int)).reshape(-1)
-        print(images_all.shape)
-        indices_class = [[] for c in range(num_classes)]
-        for i, lab in tqdm(enumerate(labels_all)):
-            indices_class[lab].append(i)
     for c in range(num_classes):
         print('class c = %d: %d real images'%(c, len(indices_class[c])))
 
@@ -333,58 +287,6 @@ def main(args, images_best, labels_best):
                     iterations = args.num_eval
                     args.lr_net = syn_lr.item()
 
-                if it == eval_it_pool[-1] and (args.filter_correct_samples or args.filter_correct_samples_both):
-                    correct = torch.zeros(len(dst_train)).cuda()
-                    images = []
-                    labels = []
-                    for it_eval in range(iterations):
-                        net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
-                        
-                        if args.interval > 0:
-                            for b, p in zip(buffer[it_eval][0], net_eval.state_dict().items()):
-                                # load the same weights
-                                p[1].copy_(b.data)
-
-                        eval_labs = label_syn
-                        with torch.no_grad():
-                            image_save = image_syn
-                        image_syn_eval, label_syn_eval = copy.deepcopy(image_save.detach()), copy.deepcopy(eval_labs.detach()) # avoid any unaware modification
-
-                        teacher_net, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args, texture=args.texture)
-
-                        loader = torch.utils.data.DataLoader(dst_train, batch_size=args.batch_train, num_workers=0)
-                        cur = 0
-
-                        for data, label in loader:
-                            data = data.cuda()
-                            label = label.cuda()
-                            output = teacher_net(data)
-                            output = torch.argmax(output, 1)
-                            correct_batch = output == label
-                            correct[cur:cur + output.shape[0]] += correct_batch
-                            cur += output.shape[0]
-                            
-                    correct = correct.cpu().numpy()
-                        
-                    for idx, (data, label) in enumerate(dst_train):
-                        if (correct[idx] < iterations) and (0 < correct[idx]):
-                            images.append(data)
-                            labels.append(label)
-                        elif (not args.filter_correct_samples_both) and (0 == correct[idx]):
-                            images.append(data)
-                            labels.append(label)
-                        else:
-                            if torch.rand(1) < 0.2:
-                                images.append(data)
-                                labels.append(label)
-                    images = torch.stack(images)
-                    labels = torch.from_numpy(np.array(labels, dtype=int)).reshape(-1)
-
-                    dst_train = torch.utils.data.TensorDataset(images, labels)
-                    dst_train.targets = labels
-                    dst_train.data = images
-                    trainloader = torch.utils.data.DataLoader(dst_train, batch_size=args.batch_train, shuffle=True, num_workers=0)
-
                 for it_eval in range(iterations):
                     net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
 
@@ -412,13 +314,7 @@ def main(args, images_best, labels_best):
 
                         timestamps = []
 
-                        if args.merge_interval: 
-                            if args.interval >= 3:
-                                max_start_epoch = args.max_start_epoch * 2
-                            else:
-                                max_start_epoch = args.max_start_epoch
-                        else:
-                            max_start_epoch = args.max_start_epoch
+                        max_start_epoch = args.max_start_epoch
                         timestamps.append([p.detach().cpu() for p in teacher_net.parameters()])
                         for e in range(max_start_epoch+args.expert_epochs+1):
                             
@@ -559,10 +455,7 @@ def main(args, images_best, labels_best):
                     buffer = buffer[:args.max_experts]
                 random.shuffle(buffer)
 
-        if args.freq > 1:
-            start_epoch = random.choice(np.arange(start_sampling_epoch, max_start_epoch + start_sampling_epoch, args.freq))
-        else:
-            start_epoch = np.random.randint(start_sampling_epoch, max_start_epoch + start_sampling_epoch)
+        start_epoch = np.random.randint(start_sampling_epoch, max_start_epoch + start_sampling_epoch)
         
         starting_params = expert_trajectory[start_epoch]
 
@@ -608,33 +501,13 @@ def main(args, images_best, labels_best):
             if args.distributed:
                 forward_params = forward_params.cpu()
                 x = x.cpu()
-            if not args.sam:
-                x = student_net(x, flat_param=forward_params)
-                # print(x)
-                # print(x.shape)
-                ce_loss = criterion(x, this_y)
-                
-                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-                student_params.append(student_params[-1] - syn_lr * grad)
-            else:
-                temp = student_net(x, flat_param=forward_params)
-                # print(x)
-                # print(x.shape)
-                ce_loss = criterion(temp, this_y)
-                
-                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-                epsilon = grad.detach()
-                grad_norm = grad.norm(2)
-                rho = 0.005
-                epsilon = epsilon * rho / grad_norm
-                new_param = student_params[-1] + epsilon
-                forward_params = new_param
-                x = student_net(x, flat_param=forward_params)
-                # print(x)
-                # print(x.shape)
-                ce_loss = criterion(x, this_y)
-                grad_new = torch.autograd.grad(ce_loss, forward_params, create_graph=True)[0]
-                student_params.append(student_params[-1] - syn_lr * grad_new)
+            
+            x = student_net(x, flat_param=forward_params)
+            ce_loss = criterion(x, this_y)
+            
+            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+            student_params.append(student_params[-1] - syn_lr * grad)
+            
         
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
@@ -749,27 +622,13 @@ if __name__ == '__main__':
     parser.add_argument('--mom', type=float, default=0, help='momentum')
     parser.add_argument('--l2', type=float, default=0, help='l2 regularization')
     parser.add_argument('--save_interval', type=int, default=10)
-
-    parser.add_argument('--filter-correct-samples', action='store_true')
-    parser.add_argument('--filter-correct-samples-both', action='store_true')
-    # finetune 
-    parser.add_argument('--finetune', action='store_true', help='finetune the synthetic images by further matching the end of the expert trajectory')
-    parser.add_argument('--finetune_steps', type=int, default=1000, help='number of finetuning steps')
-    parser.add_argument('--decreasing-ipc', action="store_true")
-    parser.add_argument('--merge-interval', action="store_true")
     parser.add_argument('--start_interval', type=int, default=1)
     parser.add_argument('--tag', type=str, default='')
     parser.add_argument('--override_experiment_path', type=str, default=None)
 
-    parser.add_argument('--filter_easy_to_hard', action='store_true')
-    parser.add_argument('--difficulty-interval', type=int, default=10)
-    parser.add_argument('--freq', type=int, default=1)
     parser.add_argument('--root_log_dir', type=str, default='logged_files')
-    parser.add_argument('--start_merge_interval', type=int, default=3)
     parser.add_argument('--start_sampling_epoch', type=int, default=0)
     parser.add_argument('--override_epoch_eval_train', type=int, default=1000, help='epochs to train a model with synthetic data')
-    parser.add_argument('--sam', action="store_true")
-    parser.add_argument('--use-more-at-first-interval', action="store_true")
 
     args = parser.parse_args()
     
@@ -782,8 +641,6 @@ if __name__ == '__main__':
         labels_best = torch.load(args.buffer_path + "/labels_best.pt")
 
     original_ipc = args.ipc
-    if args.use_more_at_first_interval:
-        args.ipc = 50
     for interval in range(args.start_interval, args.num_intervals+1):
         args.interval = interval
 
