@@ -657,29 +657,17 @@ if __name__ == '__main__':
             raise NotImplementedError
         else:
             train_datasets, val_datasets = load_data_path_multiple(args)
-        if not args.mixed_interval:
-            train_loaders = [MultiEpochsDataLoader(train_dataset,
+        train_loaders = [MultiEpochsDataLoader(train_dataset,
                                                 batch_size=args.batch_size,
                                                 shuffle=True,
                                                 num_workers=args.workers if args.augment else 0,
                                                 persistent_workers=args.augment > 0) for train_dataset in train_datasets]
-            val_loaders = [MultiEpochsDataLoader(val_dataset,
+        val_loaders = [MultiEpochsDataLoader(val_dataset,
                                             batch_size=args.batch_size // 2,
                                             shuffle=False,
                                             persistent_workers=True,
                                             num_workers=4) for val_dataset in val_datasets]
-        else:
-            chain_train_sets = torch.utils.data.ConcatDataset(train_datasets)
-            train_loaders = [MultiEpochsDataLoader(chain_train_sets,
-                                                batch_size=args.batch_size,
-                                                shuffle=True,
-                                                num_workers=args.workers if args.augment else 0,
-                                                persistent_workers=args.augment > 0)]
-            val_loaders = [MultiEpochsDataLoader(val_dataset,
-                                            batch_size=args.batch_size // 2,
-                                            shuffle=False,
-                                            persistent_workers=True,
-                                            num_workers=4) for val_dataset in val_datasets]
+       
         if args.last_only:
             train_loaders = train_loaders[-1:]
             args.epochs = 1000

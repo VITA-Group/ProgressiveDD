@@ -524,28 +524,6 @@ def condense(args, logger, device='cuda'):
         print("=" * 20)
         images = []
         labels = []
-        if args.filter_easy_to_hard:
-            trainset, val_loader = load_resized_data(args)
-
-            forgettings = pickle.load(open("cifar10_sorted_convnet.pkl", "rb"))
-            indices = forgettings['indices']    
-            forgetting = forgettings['forgetting counts']    
-            sorted_forgetting = forgetting[indices]
-            lower = interval_idx * args.difficulty_interval
-            upper = (interval_idx + 1) * args.difficulty_interval if interval_idx != args.num_intervals - 1 else 201
-            for idx, (data, label) in enumerate(trainset):
-                
-                if (sorted_forgetting[idx] >= lower) and (sorted_forgetting[idx] < upper):
-                    images.append(data)
-                    labels.append(label)
-            images = torch.stack(images)
-            labels = torch.from_numpy(np.array(labels, dtype=int)).reshape(-1)
-            print(images.shape)
-
-            trainset = torch.utils.data.TensorDataset(images, labels)
-            trainset.targets = labels
-            trainset.data = images
-            trainset.nclass = args.nclass
         
         torch.manual_seed(interval_idx)
         loader_real = ClassDataLoader(trainset,
@@ -609,47 +587,7 @@ def condense(args, logger, device='cuda'):
                 prev_loaders.append(prev_loader)
                 args.ipc = old_ipc
                 print(args.ipc)
-            if args.filter_correct_samples or args.filter_correct_samples_both:
-                correct = torch.zeros(len(trainset)).cuda()
-                for idx in range(10):
-                    model = define_model(args, nclass).to(device)
-                    model.train()
-                    for j in range(interval_idx):
-                        prev_loader = prev_loaders[j]
-                        best_acc1, acc1, return_weights = train_only(args, model, prev_loader, True, logger=logger)
-                        model.load_state_dict(return_weights)
-                    loader_acc_evaluate = ClassDataLoader(trainset,
-                                    batch_size=args.batch_real,
-                                    num_workers=args.workers,
-                                    pin_memory=True)
-                    cur = 0
-                    for data, label in loader_acc_evaluate:
-                        data = data.cuda()
-                        label = label.cuda()
-                        output = model(data)
-                        output = torch.argmax(output, 1)
-                        correct_batch = output == label
-                        correct[cur:cur + output.shape[0]] += correct_batch
-                        cur += output.shape[0]
                 
-                correct = correct.cpu().numpy()
-                
-                for idx, (data, label) in enumerate(trainset):
-                    if (correct[idx] < 10) and (0 < correct[idx]):
-                        images.append(data)
-                        labels.append(label)
-                    elif (not args.filter_correct_samples_both) and (0 == correct[idx]):
-                        images.append(data)
-                        labels.append(label)
-                images = torch.stack(images)
-                labels = torch.from_numpy(np.array(labels, dtype=int)).reshape(-1)
-                print(images.shape)
-
-                trainset = torch.utils.data.TensorDataset(images, labels)
-                trainset.targets = labels
-                trainset.data = images
-                trainset.nclass = args.nclass
-
         if not args.test:
             synset.test_with_previous(args, val_loader, prev_loaders, logger, bench=False)
 
